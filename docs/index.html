@@ -3,183 +3,168 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NBA Stats Arcade</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Inter:wght@500;700;800;900&display=swap" rel="stylesheet">
+<title>NBA Season Tracker</title>
 <style>
   :root {
-    --bg: #0a0820;
-    --bg2: #140a30;
-    --panel: rgba(28, 18, 60, .72);
-    --panel-2: #1d1442;
-    --border: #3a2a78;
-    --text: #f4f0ff;
-    --muted: #a99cd8;
-    --dim: #6b5ca8;
-    --accent: #18e0ff;   /* electric blue  - team A / primary */
-    --c2: #ff3d8b;       /* hot magenta    - team B          */
-    --win: #2bff95;      /* neon green */
-    --loss: #ff5470;     /* neon red   */
-    --gold: #ffd23f;
+    --bg: #f6f5f1;        /* warm paper */
+    --panel: #ffffff;
+    --ink: #1b1c1e;       /* near-black text */
+    --muted: #6c6f76;     /* secondary text */
+    --faint: #9a9da4;     /* axis / tertiary */
+    --line: #e4e2db;      /* hairline rules */
+    --accent: #2f5db0;    /* team A — slate blue */
+    --c2: #c2603a;        /* team B — terracotta */
+    --win: #2f7d54;       /* muted green */
+    --loss: #b1483f;      /* muted red */
+    --dim: #9a9da4;       /* svg axis text */
+    --border: #e4e2db;    /* svg grid */
+    --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
   * { box-sizing: border-box; }
   body {
-    margin: 0;
-    font-family: "Inter", system-ui, sans-serif;
-    color: var(--text);
-    min-height: 100vh;
-    background:
-      radial-gradient(900px 500px at 12% -8%, rgba(24,224,255,.08), transparent 60%),
-      radial-gradient(900px 500px at 88% -8%, rgba(255,61,139,.08), transparent 60%),
-      linear-gradient(180deg, var(--bg2) 0%, var(--bg) 55%);
-    background-attachment: fixed;
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--sans); font-size: 15px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 1040px; margin: 0 auto; padding: 26px 18px 64px; position: relative; }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 40px 22px 72px; }
 
-  /* ---- title marquee ---- */
-  header { text-align: center; margin-bottom: 8px; }
-  header h1 {
-    margin: 0; font-family: "Bungee", sans-serif; font-weight: 400;
-    font-size: clamp(1.9rem, 6.5vw, 3.3rem); line-height: .95; letter-spacing: .01em;
-    color: #fff; text-shadow: 0 2px 0 #07051a;
-  }
-  header h1 .ball { color: var(--gold); }
-  header h1 .vs { color: var(--c2); }
-  .sub {
-    margin: 12px 0 0; font-family: "Bungee", sans-serif; font-size: .68rem;
-    letter-spacing: .2em; color: var(--muted); text-transform: uppercase;
-  }
+  /* ---- masthead ---- */
+  .masthead { display: flex; justify-content: space-between; align-items: flex-end;
+    gap: 16px; padding-bottom: 16px; border-bottom: 2px solid var(--ink); flex-wrap: wrap; }
+  .masthead .kicker { font-size: .72rem; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--muted); margin: 0 0 4px; }
+  .masthead h1 { font-family: var(--serif); font-weight: 600; font-size: 2.1rem;
+    letter-spacing: -.01em; margin: 0; }
+  .masthead .meta { font-size: .82rem; color: var(--muted); margin: 0; text-align: right;
+    font-variant-numeric: tabular-nums; }
 
-  /* ---- control deck ---- */
-  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: center; margin: 26px 0 20px; }
-  .modes, .pills { display: flex; gap: 8px; }
-  .modes button, .pills button {
-    border: 2px solid var(--border); background: var(--panel-2); color: var(--muted);
-    font-family: "Bungee", sans-serif; font-size: .72rem; letter-spacing: .04em;
-    padding: 11px 18px; cursor: pointer; transition: all .15s ease;
-    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-  }
-  .pills button { font-size: .62rem; padding: 9px 13px; }
-  .modes button:hover, .pills button:hover { color: var(--text); border-color: var(--accent); }
-  .modes button.on {
-    background: var(--accent); color: #04141a; border-color: var(--accent); transform: translateY(-1px);
-  }
-  .pills button.on {
-    background: var(--gold); color: #2a1d00; border-color: var(--gold);
-  }
-  .selects { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
-  select {
-    appearance: none; background: var(--panel-2); color: var(--text);
-    border: 2px solid var(--border); border-radius: 0; padding: 10px 30px 10px 14px;
-    font-family: "Inter", sans-serif; font-weight: 700; font-size: .9rem; cursor: pointer;
-    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  /* ---- controls ---- */
+  .controls { display: flex; flex-wrap: wrap; gap: 22px 28px; align-items: center;
+    margin: 22px 0 30px; }
+  .tabs { display: flex; gap: 22px; }
+  .tabs button { border: 0; background: none; padding: 6px 0; font: inherit; font-weight: 600;
+    color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: color .15s; }
+  .tabs button:hover { color: var(--ink); }
+  .tabs button.on { color: var(--ink); border-bottom-color: var(--ink); }
+
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: var(--panel); }
+  .seg button { border: 0; background: none; padding: 7px 14px; font: inherit; font-size: .86rem;
+    color: var(--muted); cursor: pointer; border-left: 1px solid var(--line); transition: background .15s, color .15s; }
+  .seg button:first-child { border-left: 0; }
+  .seg button:hover { color: var(--ink); }
+  .seg button.on { background: var(--ink); color: #fff; }
+
+  .selects { display: flex; gap: 10px; align-items: center; margin-left: auto; flex-wrap: wrap; }
+  select { appearance: none; background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 7px; padding: 8px 32px 8px 12px; font: inherit; font-weight: 500; cursor: pointer;
     background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
-    background-position: calc(100% - 16px) center, calc(100% - 11px) center; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
-  }
-  select:focus { outline: none; border-color: var(--accent); }
-  select.p1 { border-color: var(--accent); }
-  select.p2 { border-color: var(--c2); }
-  .vsmini { font-family: "Bungee", sans-serif; color: var(--c2); font-size: 1rem; }
+    background-position: calc(100% - 17px) center, calc(100% - 12px) center; background-size: 5px 5px; background-repeat: no-repeat; }
+  select:focus { outline: none; border-color: var(--ink); }
+  .vsmini { font-family: var(--serif); font-style: italic; color: var(--muted); }
 
-  /* ---- HUD stat cards ---- */
-  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 18px 0; }
-  .card {
-    background: var(--panel); border: 2px solid var(--border); padding: 14px 16px 13px; position: relative;
-    clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
-    opacity: 0; transform: translateY(14px) scale(.97); transition: opacity .4s ease, transform .4s cubic-bezier(.2,.9,.3,1.3);
-  }
+  /* ---- stat line ---- */
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line);
+    border-radius: 10px; overflow: hidden; background: var(--panel); margin: 0 0 26px; }
+  .card { padding: 16px 18px; border-left: 1px solid var(--line); border-top: 1px solid var(--line);
+    opacity: 0; transform: translateY(6px); transition: opacity .4s ease, transform .4s ease; }
   .card.in { opacity: 1; transform: none; }
-  .card::after { content: ""; position: absolute; top: 0; left: 0; width: 36px; height: 3px; background: var(--accent); }
-  .card .k { color: var(--muted); font-family: "Bungee", sans-serif; font-size: .58rem; letter-spacing: .1em; text-transform: uppercase; }
-  .card .v { font-size: 1.7rem; font-weight: 900; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .card:nth-child(-n+4) { border-top: 0; }
+  .card:nth-child(4n+1) { border-left: 0; }
+  .card .k { color: var(--muted); font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; }
+  .card .v { font-size: 1.7rem; font-weight: 650; margin-top: 5px; font-variant-numeric: tabular-nums;
+    letter-spacing: -.01em; }
 
   /* ---- panels ---- */
-  .panel {
-    background: var(--panel); border: 2px solid var(--border); padding: 16px 18px; margin: 14px 0;
-    clip-path: polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px);
-  }
-  .panel h2 {
-    margin: 0 0 4px; font-family: "Bungee", sans-serif; font-size: .95rem; letter-spacing: .02em;
-    text-transform: uppercase; display: flex; align-items: center; gap: 10px;
-  }
-  .panel h2::before { content: ""; width: 5px; height: 17px; background: var(--accent); }
-  .panel .note { color: var(--muted); font-size: .82rem; margin: 0 0 12px; }
-  .legend { display: flex; gap: 18px; font-size: .8rem; color: var(--muted); margin-bottom: 10px; flex-wrap: wrap; font-weight: 700; }
-  .legend i { display: inline-block; width: 11px; height: 11px; margin-right: 7px; vertical-align: -1px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 20px 22px; margin: 18px 0; }
+  .panel h2 { font-size: 1rem; font-weight: 650; margin: 0; letter-spacing: -.01em; }
+  .panel .note { color: var(--muted); font-size: .85rem; margin: 3px 0 16px; }
+  .legend { display: flex; gap: 20px; font-size: .82rem; color: var(--muted); margin-bottom: 12px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 22px; height: 3px; margin-right: 8px; vertical-align: 3px; border-radius: 2px; }
 
   svg { width: 100%; height: auto; display: block; }
-  svg text { fill: var(--dim); font-size: 11px; font-family: "Inter", sans-serif; font-weight: 700; }
-  svg .grid { stroke: var(--border); stroke-width: 1; opacity: .5; }
-  svg path.line { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+  svg text { fill: var(--dim); font-size: 11px; font-family: var(--sans); }
+  svg .grid { stroke: var(--border); stroke-width: 1; }
+  svg path.line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   svg circle.dot { opacity: 0; transition: opacity .3s ease; }
   svg rect.bar { transform: scaleY(0); transform-origin: center bottom; transform-box: fill-box;
     transition: transform .5s cubic-bezier(.2,.8,.3,1); }
   svg rect.bar.grow { transform: scaleY(1); }
 
-  /* ---- VS matchup banner ---- */
-  .matchup { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
-    margin: 6px 0 18px; }
-  .matchup .team { font-family: "Bungee", sans-serif; font-size: clamp(.9rem, 2.4vw, 1.4rem); line-height: 1.05; }
-  .matchup .p1 { text-align: right; color: var(--accent); }
-  .matchup .p2 { text-align: left; color: var(--c2); }
-  .matchup .vsbadge {
-    font-family: "Bungee", sans-serif; font-size: 1.4rem; color: #fff; width: 58px; height: 58px;
-    display: grid; place-items: center; background: var(--panel-2); border: 2px solid var(--c2);
-    clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
-  }
+  /* ---- compare matchup ---- */
+  .matchup { display: flex; align-items: baseline; justify-content: center; gap: 14px;
+    padding: 6px 0 18px; font-family: var(--serif); flex-wrap: wrap; }
+  .matchup .team { font-size: 1.5rem; font-weight: 600; }
+  .matchup .p1 { color: var(--accent); }
+  .matchup .p2 { color: var(--c2); }
+  .matchup .vs { font-style: italic; color: var(--muted); font-size: 1.1rem; }
 
-  /* ---- head-to-head power bars ---- */
-  .cmp-row { display: grid; grid-template-columns: 64px 1fr 150px 1fr 64px; gap: 10px; align-items: center; margin: 11px 0; }
-  .cmp-row .name { text-align: center; color: var(--muted); font-family: "Bungee", sans-serif; font-size: .58rem; letter-spacing: .06em; text-transform: uppercase; }
-  .cmp-row .val { font-weight: 900; font-size: 1rem; font-variant-numeric: tabular-nums; }
+  /* ---- head-to-head bars ---- */
+  .cmp-row { display: grid; grid-template-columns: 56px 1fr 140px 1fr 56px; gap: 12px; align-items: center;
+    padding: 9px 0; border-top: 1px solid var(--line); }
+  .cmp-row:first-of-type { border-top: 0; }
+  .cmp-row .name { text-align: center; color: var(--muted); font-size: .76rem; text-transform: uppercase; letter-spacing: .04em; }
+  .cmp-row .val { font-weight: 650; font-variant-numeric: tabular-nums; }
   .cmp-row .val.r { text-align: right; }
-  .track { background: #0c0726; border: 2px solid var(--border); height: 16px; overflow: hidden;
-    clip-path: polygon(6px 0, 100% 0, 100% 100%, 0 100%, 0 6px); }
-  .track.left { transform: scaleX(-1); clip-path: polygon(0 0, 100% 0, 100% 100%, 6px 100%, 0 calc(100% - 6px)); }
-  .track .fill { height: 100%; width: 0; transition: width .9s cubic-bezier(.2,.8,.3,1); }
+  .track { background: #efeee9; border-radius: 3px; height: 8px; overflow: hidden; }
+  .track.left { transform: scaleX(-1); }
+  .track .fill { height: 100%; width: 0; border-radius: 3px; transition: width .8s cubic-bezier(.2,.8,.3,1); }
 
-  .msg { text-align: center; color: var(--muted); padding: 60px 20px; font-family: "Bungee", sans-serif; font-size: .9rem; }
+  .msg { text-align: center; color: var(--muted); padding: 56px 20px; }
 
-  footer { color: var(--muted); font-size: .82rem; text-align: center; margin-top: 30px; font-weight: 600; }
-  footer a { color: var(--accent); text-decoration: none; font-weight: 800; }
-  footer a:hover { text-decoration: underline; }
+  footer { color: var(--muted); font-size: .82rem; margin-top: 40px; padding-top: 16px;
+    border-top: 1px solid var(--line); }
+  footer a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--faint); }
+  footer a:hover { border-bottom-color: var(--ink); }
+
+  @media (max-width: 620px) {
+    .cards { grid-template-columns: repeat(2, 1fr); }
+    .card:nth-child(-n+4) { border-top: 1px solid var(--line); }
+    .card:nth-child(-n+2) { border-top: 0; }
+    .card:nth-child(4n+1) { border-left: 1px solid var(--line); }
+    .card:nth-child(2n+1) { border-left: 0; }
+    .selects { margin-left: 0; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <h1><span class="ball">●</span> NBA STATS <span class="vs">ARCADE</span></h1>
-    <p class="sub" id="subtitle">insert coin — loading roster…</p>
+  <header class="masthead">
+    <div>
+      <p class="kicker">NBA Analytics</p>
+      <h1>Season Tracker</h1>
+    </div>
+    <p class="meta" id="subtitle">Loading…</p>
   </header>
 
   <div id="app" hidden>
     <div class="controls">
-      <div class="modes" id="tabs">
-        <button data-tab="analyze" class="on">▸ Solo</button>
-        <button data-tab="compare">⚔ Versus</button>
+      <div class="tabs" id="tabs">
+        <button data-tab="analyze" class="on">Team</button>
+        <button data-tab="compare">Compare</button>
       </div>
-      <div class="pills" id="phase">
-        <button data-phase="all" class="on">Season</button>
+      <div class="seg" id="phase">
+        <button data-phase="all" class="on">Full season</button>
         <button data-phase="regular">Regular</button>
         <button data-phase="playoffs">Playoffs</button>
       </div>
       <div class="selects">
-        <select id="teamA" class="p1"></select>
-        <span class="vsmini" id="vsLabel" hidden>VS</span>
-        <select id="teamB" class="p2" hidden></select>
+        <select id="teamA"></select>
+        <span class="vsmini" id="vsLabel" hidden>vs</span>
+        <select id="teamB" hidden></select>
       </div>
     </div>
     <div id="view"></div>
   </div>
 
   <div class="msg" id="loadError" hidden>
-    GAME OVER — couldn't load data.json. Run the pipeline and serve this folder over HTTP.
+    Couldn't load <code>data.json</code>. Run the pipeline, then serve this folder over HTTP.
   </div>
 
   <footer>
-    stats from the <a href="https://www.balldontlie.io">BALLDONTLIE</a> API ·
-    Built by <a href="https://div23.app">Divyansh Raghuvanshi</a>
+    Data from the <a href="https://www.balldontlie.io">BALLDONTLIE</a> API.
+    Built by <a href="https://div23.app">Divyansh Raghuvanshi</a>.
   </footer>
 </div>
 
@@ -246,7 +231,7 @@ function cumulative(gs, pick) {
 /* ------------------------------------------------------------------ */
 
 function countUp(el, target, decimals = 0, suffix = "") {
-  const dur = 900, t0 = performance.now();
+  const dur = 800, t0 = performance.now();
   (function tick(t) {
     const k = Math.min(1, (t - t0) / dur);
     const eased = 1 - Math.pow(1 - k, 3);
@@ -261,7 +246,7 @@ function animateLines(container) {
     p.style.strokeDasharray = len;
     p.style.strokeDashoffset = len;
     p.getBoundingClientRect();           // force layout so the transition runs
-    p.style.transition = `stroke-dashoffset 1.4s ease-out ${i * 0.2}s`;
+    p.style.transition = `stroke-dashoffset 1.2s ease-out ${i * 0.15}s`;
     p.style.strokeDashoffset = 0;
   });
   container.querySelectorAll("circle.dot").forEach(c => {
@@ -279,7 +264,7 @@ function animateBars(container) {
 
 function revealCards(container) {
   container.querySelectorAll(".card").forEach((c, i) => {
-    setTimeout(() => c.classList.add("in"), 60 * i);
+    setTimeout(() => c.classList.add("in"), 50 * i);
   });
 }
 
@@ -289,7 +274,7 @@ function revealCards(container) {
 
 // Multi-series line chart. series = [{color, values}], x axis = game number.
 function lineChartSVG(series) {
-  const W = 920, H = 340, P = { l: 46, r: 14, t: 14, b: 32 };
+  const W = 920, H = 320, P = { l: 40, r: 14, t: 14, b: 30 };
   const maxX = Math.max(2, ...series.map(s => s.values.length));
   const maxY = Math.max(1, ...series.flatMap(s => s.values));
   const x = i => P.l + (W - P.l - P.r) * (i / (maxX - 1));
@@ -309,8 +294,8 @@ function lineChartSVG(series) {
     const pts = s.values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
     out += `<path class="line" stroke="${s.color}" d="M${pts.join(" L")}"/>`;
     s.values.forEach((v, i) => {
-      const delay = 0.2 + 1.4 * (i / s.values.length);
-      out += `<circle class="dot" cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.4" fill="${s.color}" data-delay="${delay.toFixed(2)}"/>`;
+      const delay = 0.15 + 1.2 * (i / s.values.length);
+      out += `<circle class="dot" cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2" fill="${s.color}" data-delay="${delay.toFixed(2)}"/>`;
     });
   }
   return out + "</svg>";
@@ -318,7 +303,7 @@ function lineChartSVG(series) {
 
 // Per-game point margin bars (green = win, red = loss).
 function marginChartSVG(gs) {
-  const W = 920, H = 260, P = { l: 46, r: 14, t: 14, b: 30 };
+  const W = 920, H = 240, P = { l: 40, r: 14, t: 14, b: 28 };
   const maxAbs = Math.max(6, ...gs.map(g => Math.abs(g.pts - g.opp)));
   const x = i => P.l + (W - P.l - P.r) * (i / Math.max(1, gs.length));
   const y = v => H - P.b - (H - P.t - P.b) * ((v + maxAbs) / (2 * maxAbs));
@@ -335,8 +320,8 @@ function marginChartSVG(gs) {
     const top = diff >= 0 ? y(diff) : zero;
     const h = Math.max(1, Math.abs(zero - y(diff)));
     const color = diff >= 0 ? "var(--win)" : "var(--loss)";
-    const label = `G${i + 1} ${g.home ? "vs" : "@"} ${esc(g.opponent)}: ${g.pts}-${g.opp} (${diff >= 0 ? "+" : ""}${diff})`;
-    out += `<rect class="bar" x="${x(i).toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" fill="${color}"><title>${label}</title></rect>`;
+    const label = `Game ${i + 1} ${g.home ? "vs" : "@"} ${esc(g.opponent)}: ${g.pts}-${g.opp} (${diff >= 0 ? "+" : ""}${diff})`;
+    out += `<rect class="bar" x="${x(i).toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="1" fill="${color}"><title>${label}</title></rect>`;
   });
   return out + "</svg>";
 }
@@ -357,12 +342,12 @@ function renderAnalyze() {
 
   const cards = [
     { k: "Record", v: `${s.wins}-${s.losses}` },
-    { k: "Win Rate", num: s.winPct * 100, dec: 1, suffix: "%" },
+    { k: "Win %", num: s.winPct * 100, dec: 1, suffix: "%" },
     { k: "Home", v: `${s.homeW}-${s.homeL}` },
     { k: "Away", v: `${s.awayW}-${s.awayL}` },
-    { k: "Offense", num: s.ppg, dec: 1 },
-    { k: "Defense", num: s.oppg, dec: 1 },
-    { k: "Hot Streak", num: s.bestStreak },
+    { k: "Points for / g", num: s.ppg, dec: 1 },
+    { k: "Points against / g", num: s.oppg, dec: 1 },
+    { k: "Best streak", num: s.bestStreak },
     { k: `Last ${s.last10N}`, v: `${s.last10W}-${s.last10N - s.last10W}` },
   ];
 
@@ -373,8 +358,8 @@ function renderAnalyze() {
         <div class="v" id="stat${i}">${c.num === undefined ? c.v : "0"}</div></div>`).join("")}
     </div>
     <div class="panel">
-      <h2>${esc(team)} — Season Run</h2>
-      <p class="note">Cumulative wins and losses, game by game.</p>
+      <h2>Cumulative record</h2>
+      <p class="note">${esc(team)} wins and losses accumulated game by game.</p>
       <div class="legend">
         <span><i style="background:var(--win)"></i>Wins</span>
         <span><i style="background:var(--loss)"></i>Losses</span>
@@ -385,8 +370,8 @@ function renderAnalyze() {
       ])}</div>
     </div>
     <div class="panel">
-      <h2>Scoreboard — Point Margin</h2>
-      <p class="note">Green bars are wins, red are losses. Hover a bar for the box score.</p>
+      <h2>Point margin by game</h2>
+      <p class="note">Final margin for each game. Hover a bar for the box score.</p>
       <div id="marginChart">${marginChartSVG(s.games)}</div>
     </div>`;
 
@@ -410,23 +395,23 @@ function renderCompare() {
 
   const rows = [
     { name: "Wins", a: sa.wins, b: sb.wins },
-    { name: "Win Rate", a: sa.winPct * 100, b: sb.winPct * 100, dec: 1, suffix: "%" },
-    { name: "Offense", a: sa.ppg, b: sb.ppg, dec: 1 },
-    { name: "Defense", a: sa.oppg, b: sb.oppg, dec: 1, lowerBetter: true },
-    { name: "Home Wins", a: sa.homeW, b: sb.homeW },
-    { name: "Away Wins", a: sa.awayW, b: sb.awayW },
-    { name: "Hot Streak", a: sa.bestStreak, b: sb.bestStreak },
+    { name: "Win %", a: sa.winPct * 100, b: sb.winPct * 100, dec: 1, suffix: "%" },
+    { name: "Points for", a: sa.ppg, b: sb.ppg, dec: 1 },
+    { name: "Points against", a: sa.oppg, b: sb.oppg, dec: 1, lowerBetter: true },
+    { name: "Home wins", a: sa.homeW, b: sb.homeW },
+    { name: "Away wins", a: sa.awayW, b: sb.awayW },
+    { name: "Best streak", a: sa.bestStreak, b: sb.bestStreak },
   ];
 
   view.innerHTML = `
     <div class="matchup">
-      <div class="team p1">${esc(a)}</div>
-      <div class="vsbadge">VS</div>
-      <div class="team p2">${esc(b)}</div>
+      <span class="team p1">${esc(a)}</span>
+      <span class="vs">vs</span>
+      <span class="team p2">${esc(b)}</span>
     </div>
     <div class="panel">
-      <h2>Race to the Top — Wins</h2>
-      <p class="note">Who stacked up wins faster across the season.</p>
+      <h2>Cumulative wins</h2>
+      <p class="note">Which team built its win total faster across the season.</p>
       <div class="legend">
         <span><i style="background:var(--accent)"></i>${esc(a)}</span>
         <span><i style="background:var(--c2)"></i>${esc(b)}</span>
@@ -437,8 +422,8 @@ function renderCompare() {
       ])}</div>
     </div>
     <div class="panel">
-      <h2>Head to Head</h2>
-      <p class="note">${esc(a)} on the left, ${esc(b)} on the right. The brighter bar wins each stat.</p>
+      <h2>Head to head</h2>
+      <p class="note">${esc(a)} at left, ${esc(b)} at right. The darker bar leads each metric.</p>
       ${rows.map((r) => {
         const max = Math.max(r.a, r.b, 0.001);
         const aWins = r.lowerBetter ? r.a <= r.b : r.a >= r.b;
@@ -447,10 +432,10 @@ function renderCompare() {
         <div class="cmp-row">
           <div class="val" style="color:var(--accent)">${fmt(r.a)}</div>
           <div class="track left"><div class="fill" data-w="${(100 * r.a / max).toFixed(1)}"
-               style="background:var(--accent);opacity:${aWins ? 1 : 0.35}"></div></div>
+               style="background:var(--accent);opacity:${aWins ? 1 : 0.4}"></div></div>
           <div class="name">${r.name}</div>
           <div class="track"><div class="fill" data-w="${(100 * r.b / max).toFixed(1)}"
-               style="background:var(--c2);opacity:${aWins ? 0.35 : 1}"></div></div>
+               style="background:var(--c2);opacity:${aWins ? 0.4 : 1}"></div></div>
           <div class="val r" style="color:var(--c2)">${fmt(r.b)}</div>
         </div>`;
       }).join("")}
@@ -458,7 +443,7 @@ function renderCompare() {
 
   animateLines($("#cmpChart"));
   view.querySelectorAll(".fill").forEach((f, i) => {
-    setTimeout(() => { f.style.width = f.dataset.w + "%"; }, 80 * i + 200);
+    setTimeout(() => { f.style.width = f.dataset.w + "%"; }, 70 * i + 180);
   });
 }
 
@@ -478,14 +463,14 @@ async function boot() {
     if (!resp.ok) throw new Error(resp.statusText);
     DATA = await resp.json();
   } catch (e) {
-    $("#subtitle").textContent = "no data yet.";
+    $("#subtitle").textContent = "No data available.";
     $("#loadError").hidden = false;
     return;
   }
 
   const season = DATA.season;
-  $("#subtitle").textContent =
-    `${season}-${String(season + 1).slice(-2)} season · ${DATA.games.length} games · updated ${DATA.updated}`;
+  $("#subtitle").innerHTML =
+    `${season}–${String(season + 1).slice(-2)} season · ${DATA.games.length} games<br>Updated ${DATA.updated}`;
 
   for (const sel of [$("#teamA"), $("#teamB")]) {
     sel.innerHTML = DATA.teams.map(t => `<option>${esc(t)}</option>`).join("");
