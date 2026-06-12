@@ -1,0 +1,40 @@
+name: Update NBA stats
+
+# This is what makes it a "pipeline" instead of a script you run by hand:
+# it runs on its own, on a schedule.
+on:
+  schedule:
+    - cron: "0 12 * * *"     # every day at 12:00 UTC
+  workflow_dispatch:          # also lets you trigger it manually from the Actions tab
+
+permissions:
+  contents: write             # needed so the job can commit the updated data back
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Fetch latest games
+        env:
+          BALLDONTLIE_API_KEY: ${{ secrets.BALLDONTLIE_API_KEY }}
+        run: python fetch_games.py
+
+      - name: Commit updated data and chart
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add games.db season_chart.png
+          # only commit if something actually changed
+          git diff --staged --quiet || git commit -m "Update stats $(date -u +%Y-%m-%d)"
+          git push
