@@ -135,6 +135,33 @@
   footer a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--faint); }
   footer a:hover { border-bottom-color: var(--ink); }
 
+  /* ---- loading overlay ---- */
+  #loader { position: fixed; inset: 0; z-index: 50; background: var(--bg); color: var(--ink);
+    display: grid; place-items: center; transition: opacity .45s ease; }
+  #loader.hide { opacity: 0; pointer-events: none; }
+  .loader-inner { width: min(380px, 86vw); }
+  .loader-inner .kicker { font-size: .72rem; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--muted); margin: 0 0 4px; }
+  .loader-inner h2 { font-family: var(--serif); font-weight: 600; font-size: 1.8rem; margin: 0 0 24px; }
+  .lstep { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    padding: 11px 0; border-top: 1px solid var(--line); font-size: .92rem; color: var(--muted);
+    opacity: .45; transition: opacity .3s ease, color .3s ease; }
+  .lstep:first-child { border-top: 0; }
+  .lstep.active, .lstep.done { opacity: 1; color: var(--ink); }
+  .lstep .status { display: flex; align-items: center; gap: 8px; color: var(--muted);
+    font-size: .86rem; font-variant-numeric: tabular-nums; }
+  .lstep .check { width: 15px; height: 15px; color: var(--win); opacity: 0; transform: scale(.5);
+    transition: opacity .25s ease, transform .25s ease; }
+  .lstep.active .check { opacity: 0; }
+  .lstep.done .check { opacity: 1; transform: none; }
+  .lstep .spin { width: 13px; height: 13px; border: 2px solid var(--line); border-top-color: var(--muted);
+    border-radius: 50%; animation: lspin .7s linear infinite; opacity: 0; }
+  .lstep.active .spin { opacity: 1; }
+  .lstep.done .spin { display: none; }
+  @keyframes lspin { to { transform: rotate(360deg); } }
+  .lbar { height: 3px; background: var(--line); border-radius: 2px; margin-top: 26px; overflow: hidden; }
+  .lbar > span { display: block; height: 100%; width: 0; background: var(--ink); border-radius: 2px; }
+
   /* ---- theme toggle ---- */
   #theme-toggle {
     position: fixed; bottom: 22px; right: 22px; width: 42px; height: 42px;
@@ -168,6 +195,32 @@
 </script>
 </head>
 <body>
+
+<div id="loader">
+  <div class="loader-inner">
+    <p class="kicker">NBA Analytics</p>
+    <h2>Season Tracker</h2>
+    <div class="lsteps">
+      <div class="lstep"><span class="label">League schedule</span>
+        <span class="status"><span class="txt" id="ls-season"></span><span class="spin"></span>
+          <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg></span></div>
+      <div class="lstep"><span class="label">Game results</span>
+        <span class="status"><span class="txt" id="ls-games"></span><span class="spin"></span>
+          <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg></span></div>
+      <div class="lstep"><span class="label">Team rosters</span>
+        <span class="status"><span class="txt" id="ls-teams"></span><span class="spin"></span>
+          <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg></span></div>
+      <div class="lstep"><span class="label">Records &amp; streaks</span>
+        <span class="status"><span class="spin"></span>
+          <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg></span></div>
+      <div class="lstep"><span class="label">Charts &amp; comparisons</span>
+        <span class="status"><span class="spin"></span>
+          <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 13l4 4L19 7"/></svg></span></div>
+    </div>
+    <div class="lbar"><span></span></div>
+  </div>
+</div>
+
 <div class="wrap">
   <header class="masthead">
     <div>
@@ -514,20 +567,45 @@ function render() {
 /* Boot                                                               */
 /* ------------------------------------------------------------------ */
 
+// Drives the loading overlay: steps tick off one by one over ~2s as the
+// progress bar fills, then resolves.
+function runLoaderSequence() {
+  return new Promise(resolve => {
+    const steps = [...document.querySelectorAll(".lstep")];
+    const bar = document.querySelector(".lbar > span");
+    bar.style.transition = "width 1.9s linear";
+    requestAnimationFrame(() => { bar.style.width = "100%"; });
+
+    const per = 1700 / steps.length;
+    steps.forEach((s, i) => {
+      setTimeout(() => s.classList.add("active"), i * per);
+      setTimeout(() => { s.classList.remove("active"); s.classList.add("done"); }, i * per + per * 0.75);
+    });
+    setTimeout(resolve, 2000);
+  });
+}
+
 async function boot() {
+  const loader = $("#loader");
   try {
     const resp = await fetch("data.json");
     if (!resp.ok) throw new Error(resp.statusText);
     DATA = await resp.json();
   } catch (e) {
+    loader.classList.add("hide");
+    setTimeout(() => loader.remove(), 450);
     $("#subtitle").textContent = "No data available.";
     $("#loadError").hidden = false;
     return;
   }
 
   const season = DATA.season;
+  const seasonLabel = `${season}–${String(season + 1).slice(-2)}`;
   $("#subtitle").innerHTML =
-    `${season}–${String(season + 1).slice(-2)} season · ${DATA.games.length} games<br>Updated ${DATA.updated}`;
+    `${seasonLabel} season · ${DATA.games.length} games<br>Updated ${DATA.updated}`;
+  $("#ls-season").textContent = seasonLabel;
+  $("#ls-games").textContent = DATA.games.length.toLocaleString();
+  $("#ls-teams").textContent = `${DATA.teams.length} teams`;
 
   for (const sel of [$("#teamA"), $("#teamB")]) {
     sel.innerHTML = DATA.teams.map(t => `<option>${esc(t)}</option>`).join("");
@@ -552,8 +630,12 @@ async function boot() {
     render();
   };
 
+  await runLoaderSequence();
+
   $("#app").hidden = false;
-  render();
+  render();                       // chart animations play as the overlay fades
+  loader.classList.add("hide");
+  setTimeout(() => loader.remove(), 450);
 }
 
 boot();
