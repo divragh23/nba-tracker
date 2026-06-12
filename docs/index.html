@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>nba-stats-tracker</title>
+<style>
+  :root {
+    --bg: #060a10;
+    --panel: #0b1018;
+    --panel-2: #111a28;
+    --border: #1c2940;
+    --text: #d7e2ee;
+    --muted: #5d718c;
+    --dim: #3b4b63;
+    --accent: #22d3ee;   /* cyan  - primary / team A */
+    --c2: #fbbf24;       /* amber - team B / losses  */
+    --win: #4ade80;      /* green */
+    --loss: #f87171;     /* red   */
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    background: var(--bg);
+    background-image:
+      linear-gradient(rgba(34, 211, 238, .025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(34, 211, 238, .025) 1px, transparent 1px);
+    background-size: 36px 36px;
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 30px 18px 50px; }
+
+  header h1 { margin: 0; font-size: 1.4rem; font-weight: 600; letter-spacing: .02em; }
+  header h1 .prompt { color: var(--accent); }
+  .cursor { display: inline-block; width: .6em; height: 1.05em; background: var(--accent);
+            vertical-align: -2px; margin-left: 4px; animation: blink 1.1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .sub { color: var(--muted); margin: 8px 0 0; font-size: .85rem; }
+  .sub::before { content: "# "; color: var(--dim); }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 26px 0 16px; }
+  .tabs, .pills { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+  .tabs button, .pills button {
+    border: 0; background: var(--panel); color: var(--muted); font: inherit; font-size: .82rem;
+    padding: 8px 14px; cursor: pointer; transition: all .2s ease; border-right: 1px solid var(--border);
+  }
+  .tabs button:last-child, .pills button:last-child { border-right: 0; }
+  .tabs button.on, .pills button.on {
+    background: rgba(34, 211, 238, .1); color: var(--accent); text-shadow: 0 0 12px rgba(34, 211, 238, .5);
+  }
+  .spacer { flex: 1; }
+
+  select {
+    background: var(--panel); color: var(--text); border: 1px solid var(--border);
+    border-radius: 4px; padding: 8px 10px; font: inherit; font-size: .85rem; cursor: pointer;
+  }
+  select:focus { outline: 1px solid var(--accent); }
+  .vs { color: var(--dim); font-size: .8rem; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 16px 0; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 12px 14px;
+    border-top: 2px solid var(--border);
+    opacity: 0; transform: translateY(10px); transition: opacity .45s ease, transform .45s ease;
+  }
+  .card.in { opacity: 1; transform: none; border-top-color: var(--accent); }
+  .card .k { color: var(--muted); font-size: .72rem; letter-spacing: .04em; }
+  .card .k::before { content: "> "; color: var(--dim); }
+  .card .v { font-size: 1.45rem; font-weight: 700; margin-top: 6px; font-variant-numeric: tabular-nums; }
+
+  .panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
+    padding: 16px 18px; margin: 14px 0;
+  }
+  .panel h2 { margin: 0 0 2px; font-size: .95rem; font-weight: 600; letter-spacing: .02em; }
+  .panel h2::before { content: "// "; color: var(--dim); font-weight: 400; }
+  .panel .note { color: var(--muted); font-size: .78rem; margin: 0 0 12px; }
+  .legend { display: flex; gap: 18px; font-size: .78rem; color: var(--muted); margin-bottom: 8px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 7px; vertical-align: -1px; }
+
+  svg { width: 100%; height: auto; display: block; }
+  svg text { fill: var(--dim); font-size: 10px; font-family: inherit; }
+  svg .grid { stroke: var(--border); stroke-width: 1; opacity: .6; }
+  svg path.line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  svg circle.dot { opacity: 0; transition: opacity .3s ease; }
+  svg rect.bar { transform: scaleY(0); transform-origin: center bottom; transform-box: fill-box; transition: transform .5s cubic-bezier(.2,.8,.3,1); }
+  svg rect.bar.grow { transform: scaleY(1); }
+
+  .cmp-row { display: grid; grid-template-columns: 60px 1fr 170px 1fr 60px; gap: 10px; align-items: center; margin: 9px 0; font-size: .85rem; }
+  .cmp-row .name { text-align: center; color: var(--muted); font-size: .78rem; }
+  .cmp-row .val { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .cmp-row .val.r { text-align: right; }
+  .track { background: var(--panel-2); border: 1px solid var(--border); border-radius: 2px; height: 9px; overflow: hidden; }
+  .track .fill { height: 100%; width: 0; transition: width .9s cubic-bezier(.2,.8,.3,1); }
+  .track.left { transform: scaleX(-1); }  /* mirror so the left bar grows toward the center */
+
+  .msg { text-align: center; color: var(--muted); padding: 60px 20px; font-size: .85rem; }
+  footer { color: var(--dim); font-size: .76rem; text-align: center; margin-top: 26px; }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="prompt">$</span> nba-stats-tracker<span class="cursor"></span></h1>
+    <p class="sub" id="subtitle">loading data.json …</p>
+  </header>
+
+  <div id="app" hidden>
+    <div class="controls">
+      <div class="tabs" id="tabs">
+        <button data-tab="analyze" class="on">analyze</button>
+        <button data-tab="compare">compare</button>
+      </div>
+      <div class="pills" id="phase">
+        <button data-phase="all" class="on">full_season</button>
+        <button data-phase="regular">regular</button>
+        <button data-phase="playoffs">playoffs</button>
+      </div>
+      <div class="spacer"></div>
+      <select id="teamA"></select>
+      <span class="vs" id="vsLabel" hidden>vs</span>
+      <select id="teamB" hidden></select>
+    </div>
+    <div id="view"></div>
+  </div>
+
+  <div class="msg" id="loadError" hidden>
+    couldn't load <code>data.json</code> — run the pipeline first
+    (<code>python fetch_games.py</code>) and serve this folder over HTTP.
+  </div>
+
+  <footer>
+    stats from the <a href="https://www.balldontlie.io">BALLDONTLIE</a> API ·
+    Built by <a href="https://div23.app">Divyansh Raghuvanshi</a>
+  </footer>
+</div>
+
+<script>
+"use strict";
+
+let DATA = null;
+let state = { tab: "analyze", phase: "all", teamA: null, teamB: null };
+
+const $ = (sel) => document.querySelector(sel);
+const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+
+/* ------------------------------------------------------------------ */
+/* Data helpers                                                       */
+/* ------------------------------------------------------------------ */
+
+function phaseGames() {
+  if (state.phase === "regular") return DATA.games.filter(g => !g.postseason);
+  if (state.phase === "playoffs") return DATA.games.filter(g => g.postseason);
+  return DATA.games;
+}
+
+// All of one team's games, from that team's point of view.
+function teamGames(team) {
+  return phaseGames()
+    .filter(g => g.home === team || g.away === team)
+    .map(g => {
+      const home = g.home === team;
+      const pts = home ? g.home_score : g.away_score;
+      const opp = home ? g.away_score : g.home_score;
+      return { date: g.date, opponent: home ? g.away : g.home, home,
+               pts, opp, win: pts > opp };
+    });
+}
+
+function teamStats(team) {
+  const gs = teamGames(team);
+  const wins = gs.filter(g => g.win).length;
+  const losses = gs.length - wins;
+  const sum = (arr) => arr.reduce((a, b) => a + b, 0);
+  const homeGs = gs.filter(g => g.home), awayGs = gs.filter(g => !g.home);
+  let streak = 0, best = 0;
+  for (const g of gs) { streak = g.win ? streak + 1 : 0; best = Math.max(best, streak); }
+  const last10 = gs.slice(-10);
+  return {
+    games: gs, wins, losses,
+    winPct: gs.length ? wins / gs.length : 0,
+    homeW: homeGs.filter(g => g.win).length, homeL: homeGs.filter(g => !g.win).length,
+    awayW: awayGs.filter(g => g.win).length, awayL: awayGs.filter(g => !g.win).length,
+    ppg: gs.length ? sum(gs.map(g => g.pts)) / gs.length : 0,
+    oppg: gs.length ? sum(gs.map(g => g.opp)) / gs.length : 0,
+    bestStreak: best,
+    last10W: last10.filter(g => g.win).length, last10N: last10.length,
+  };
+}
+
+function cumulative(gs, pick) {
+  let c = 0;
+  return gs.map(g => (c += pick(g) ? 1 : 0));
+}
+
+/* ------------------------------------------------------------------ */
+/* Animation helpers                                                  */
+/* ------------------------------------------------------------------ */
+
+function countUp(el, target, decimals = 0, suffix = "") {
+  const dur = 900, t0 = performance.now();
+  (function tick(t) {
+    const k = Math.min(1, (t - t0) / dur);
+    const eased = 1 - Math.pow(1 - k, 3);
+    el.textContent = (target * eased).toFixed(decimals) + suffix;
+    if (k < 1) requestAnimationFrame(tick);
+  })(t0);
+}
+
+function animateLines(container) {
+  container.querySelectorAll("path.line").forEach((p, i) => {
+    const len = p.getTotalLength();
+    p.style.strokeDasharray = len;
+    p.style.strokeDashoffset = len;
+    p.getBoundingClientRect();           // force layout so the transition runs
+    p.style.transition = `stroke-dashoffset 1.4s ease-out ${i * 0.2}s`;
+    p.style.strokeDashoffset = 0;
+  });
+  container.querySelectorAll("circle.dot").forEach(c => {
+    const d = parseFloat(c.dataset.delay || 0);
+    setTimeout(() => { c.style.opacity = 1; }, d * 1000);
+  });
+}
+
+function animateBars(container) {
+  container.querySelectorAll("rect.bar").forEach((r, i) => {
+    r.style.transitionDelay = Math.min(i * 12, 600) + "ms";
+    requestAnimationFrame(() => requestAnimationFrame(() => r.classList.add("grow")));
+  });
+}
+
+function revealCards(container) {
+  container.querySelectorAll(".card").forEach((c, i) => {
+    setTimeout(() => c.classList.add("in"), 60 * i);
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* SVG chart builders                                                 */
+/* ------------------------------------------------------------------ */
+
+// Multi-series line chart. series = [{color, values}], x axis = game number.
+function lineChartSVG(series) {
+  const W = 920, H = 340, P = { l: 46, r: 14, t: 14, b: 32 };
+  const maxX = Math.max(2, ...series.map(s => s.values.length));
+  const maxY = Math.max(1, ...series.flatMap(s => s.values));
+  const x = i => P.l + (W - P.l - P.r) * (i / (maxX - 1));
+  const y = v => H - P.b - (H - P.t - P.b) * (v / maxY);
+
+  let out = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  const yStep = Math.max(1, Math.ceil(maxY / 5));
+  for (let v = 0; v <= maxY; v += yStep) {
+    out += `<line class="grid" x1="${P.l}" y1="${y(v)}" x2="${W - P.r}" y2="${y(v)}"/>` +
+           `<text x="${P.l - 8}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+  }
+  const xStep = Math.max(1, Math.ceil(maxX / 10));
+  for (let i = 0; i < maxX; i += xStep) {
+    out += `<text x="${x(i)}" y="${H - 10}" text-anchor="middle">${i + 1}</text>`;
+  }
+  for (const s of series) {
+    const pts = s.values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
+    out += `<path class="line" stroke="${s.color}" d="M${pts.join(" L")}"/>`;
+    s.values.forEach((v, i) => {
+      const delay = 0.2 + 1.4 * (i / s.values.length);
+      out += `<circle class="dot" cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.2" fill="${s.color}" data-delay="${delay.toFixed(2)}"/>`;
+    });
+  }
+  return out + "</svg>";
+}
+
+// Per-game point margin bars (green = win, red = loss).
+function marginChartSVG(gs) {
+  const W = 920, H = 260, P = { l: 46, r: 14, t: 14, b: 30 };
+  const maxAbs = Math.max(6, ...gs.map(g => Math.abs(g.pts - g.opp)));
+  const x = i => P.l + (W - P.l - P.r) * (i / Math.max(1, gs.length));
+  const y = v => H - P.b - (H - P.t - P.b) * ((v + maxAbs) / (2 * maxAbs));
+  const zero = y(0);
+  const bw = Math.max(2, ((W - P.l - P.r) / Math.max(1, gs.length)) - 2);
+
+  let out = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  for (const v of [-maxAbs, 0, maxAbs]) {
+    out += `<line class="grid" x1="${P.l}" y1="${y(v)}" x2="${W - P.r}" y2="${y(v)}"/>` +
+           `<text x="${P.l - 8}" y="${y(v) + 4}" text-anchor="end">${v > 0 ? "+" : ""}${v}</text>`;
+  }
+  gs.forEach((g, i) => {
+    const diff = g.pts - g.opp;
+    const top = diff >= 0 ? y(diff) : zero;
+    const h = Math.max(1, Math.abs(zero - y(diff)));
+    const color = diff >= 0 ? "var(--win)" : "var(--loss)";
+    const label = `G${i + 1} ${g.home ? "vs" : "@"} ${esc(g.opponent)}: ${g.pts}-${g.opp} (${diff >= 0 ? "+" : ""}${diff})`;
+    out += `<rect class="bar" x="${x(i).toFixed(1)}" y="${top.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="1" fill="${color}"><title>${label}</title></rect>`;
+  });
+  return out + "</svg>";
+}
+
+/* ------------------------------------------------------------------ */
+/* Views                                                              */
+/* ------------------------------------------------------------------ */
+
+function renderAnalyze() {
+  const team = state.teamA;
+  const s = teamStats(team);
+  const view = $("#view");
+
+  if (!s.games.length) {
+    view.innerHTML = `<div class="msg">no ${state.phase === "all" ? "" : state.phase + " "}games for ${esc(team)} yet.</div>`;
+    return;
+  }
+
+  const cards = [
+    { k: "record", v: `${s.wins}-${s.losses}` },
+    { k: "win_pct", num: s.winPct * 100, dec: 1, suffix: "%" },
+    { k: "home", v: `${s.homeW}-${s.homeL}` },
+    { k: "away", v: `${s.awayW}-${s.awayL}` },
+    { k: "pts_for/g", num: s.ppg, dec: 1 },
+    { k: "pts_against/g", num: s.oppg, dec: 1 },
+    { k: "best_streak", num: s.bestStreak },
+    { k: `last_${s.last10N}`, v: `${s.last10W}-${s.last10N - s.last10W}` },
+  ];
+
+  view.innerHTML = `
+    <div class="cards">
+      ${cards.map((c, i) => `
+        <div class="card"><div class="k">${c.k}</div>
+        <div class="v" id="stat${i}">${c.num === undefined ? c.v : "0"}</div></div>`).join("")}
+    </div>
+    <div class="panel">
+      <h2>season_progress — ${esc(team)}</h2>
+      <p class="note">cumulative totals, game by game.</p>
+      <div class="legend">
+        <span><i style="background:var(--win)"></i>wins</span>
+        <span><i style="background:var(--loss)"></i>losses</span>
+      </div>
+      <div id="lineChart">${lineChartSVG([
+        { color: "var(--win)", values: cumulative(s.games, g => g.win) },
+        { color: "var(--loss)", values: cumulative(s.games, g => !g.win) },
+      ])}</div>
+    </div>
+    <div class="panel">
+      <h2>point_margin</h2>
+      <p class="note">green bars are wins, red are losses. hover a bar for the box score.</p>
+      <div id="marginChart">${marginChartSVG(s.games)}</div>
+    </div>`;
+
+  cards.forEach((c, i) => {
+    if (c.num !== undefined) countUp($(`#stat${i}`), c.num, c.dec || 0, c.suffix || "");
+  });
+  revealCards(view);
+  animateLines($("#lineChart"));
+  animateBars($("#marginChart"));
+}
+
+function renderCompare() {
+  const [a, b] = [state.teamA, state.teamB];
+  const sa = teamStats(a), sb = teamStats(b);
+  const view = $("#view");
+
+  if (!sa.games.length || !sb.games.length) {
+    view.innerHTML = `<div class="msg">not enough ${state.phase === "all" ? "" : state.phase + " "}games to compare these teams.</div>`;
+    return;
+  }
+
+  const rows = [
+    { name: "wins", a: sa.wins, b: sb.wins },
+    { name: "win_pct", a: sa.winPct * 100, b: sb.winPct * 100, dec: 1, suffix: "%" },
+    { name: "pts_for/g", a: sa.ppg, b: sb.ppg, dec: 1 },
+    { name: "pts_against/g", a: sa.oppg, b: sb.oppg, dec: 1, lowerBetter: true },
+    { name: "home_wins", a: sa.homeW, b: sb.homeW },
+    { name: "away_wins", a: sa.awayW, b: sb.awayW },
+    { name: "best_streak", a: sa.bestStreak, b: sb.bestStreak },
+  ];
+
+  view.innerHTML = `
+    <div class="panel">
+      <h2>cumulative_wins</h2>
+      <p class="note">who stacked up wins faster across the season.</p>
+      <div class="legend">
+        <span><i style="background:var(--accent)"></i>${esc(a)}</span>
+        <span><i style="background:var(--c2)"></i>${esc(b)}</span>
+      </div>
+      <div id="cmpChart">${lineChartSVG([
+        { color: "var(--accent)", values: cumulative(sa.games, g => g.win) },
+        { color: "var(--c2)", values: cumulative(sb.games, g => g.win) },
+      ])}</div>
+    </div>
+    <div class="panel">
+      <h2>head_to_head</h2>
+      <p class="note">${esc(a)} on the left, ${esc(b)} on the right. the brighter bar leads.</p>
+      ${rows.map((r, i) => {
+        const max = Math.max(r.a, r.b, 0.001);
+        const aWins = r.lowerBetter ? r.a <= r.b : r.a >= r.b;
+        const fmt = v => v.toFixed(r.dec || 0) + (r.suffix || "");
+        return `
+        <div class="cmp-row">
+          <div class="val">${fmt(r.a)}</div>
+          <div class="track left"><div class="fill" data-w="${(100 * r.a / max).toFixed(1)}"
+               style="background:var(--accent);opacity:${aWins ? 1 : 0.4}"></div></div>
+          <div class="name">${r.name}</div>
+          <div class="track"><div class="fill" data-w="${(100 * r.b / max).toFixed(1)}"
+               style="background:var(--c2);opacity:${aWins ? 0.4 : 1}"></div></div>
+          <div class="val r">${fmt(r.b)}</div>
+        </div>`;
+      }).join("")}
+    </div>`;
+
+  animateLines($("#cmpChart"));
+  view.querySelectorAll(".fill").forEach((f, i) => {
+    setTimeout(() => { f.style.width = f.dataset.w + "%"; }, 80 * i + 200);
+  });
+}
+
+function render() {
+  $("#teamB").hidden = $("#vsLabel").hidden = state.tab !== "compare";
+  if (state.tab === "compare") renderCompare();
+  else renderAnalyze();
+}
+
+/* ------------------------------------------------------------------ */
+/* Boot                                                               */
+/* ------------------------------------------------------------------ */
+
+async function boot() {
+  try {
+    const resp = await fetch("data.json");
+    if (!resp.ok) throw new Error(resp.statusText);
+    DATA = await resp.json();
+  } catch (e) {
+    $("#subtitle").textContent = "no data yet.";
+    $("#loadError").hidden = false;
+    return;
+  }
+
+  const season = DATA.season;
+  $("#subtitle").textContent =
+    `${season}-${String(season + 1).slice(-2)} season · ${DATA.games.length} games · updated ${DATA.updated}`;
+
+  for (const sel of [$("#teamA"), $("#teamB")]) {
+    sel.innerHTML = DATA.teams.map(t => `<option>${esc(t)}</option>`).join("");
+  }
+  state.teamA = DATA.teams.includes("Los Angeles Lakers") ? "Los Angeles Lakers" : DATA.teams[0];
+  state.teamB = DATA.teams.find(t => t !== state.teamA);
+  $("#teamA").value = state.teamA;
+  $("#teamB").value = state.teamB;
+
+  $("#teamA").onchange = e => { state.teamA = e.target.value; render(); };
+  $("#teamB").onchange = e => { state.teamB = e.target.value; render(); };
+  $("#tabs").onclick = e => {
+    const btn = e.target.closest("button"); if (!btn) return;
+    state.tab = btn.dataset.tab;
+    $("#tabs").querySelectorAll("button").forEach(b => b.classList.toggle("on", b === btn));
+    render();
+  };
+  $("#phase").onclick = e => {
+    const btn = e.target.closest("button"); if (!btn) return;
+    state.phase = btn.dataset.phase;
+    $("#phase").querySelectorAll("button").forEach(b => b.classList.toggle("on", b === btn));
+    render();
+  };
+
+  $("#app").hidden = false;
+  render();
+}
+
+boot();
+</script>
+</body>
+</html>
