@@ -1,19 +1,8 @@
-"""
-NBA Stats Tracker
------------------
-A small data pipeline (ETL) that:
-  1. EXTRACT  - pulls EVERY game of the current NBA season (all 30 teams)
-                from the BALLDONTLIE API, page by page.
-  2. TRANSFORM - keeps one clean, neutral row per finished game
-                (home team, away team, scores, playoff flag).
-  3. LOAD     - upserts the rows into a SQLite database keyed on the API's
-                game id, so re-running never creates duplicates.
-Then it:
-  - exports docs/data.json   -> read by the website in docs/
-  - draws season_chart.png   -> the TEAM_NAME chart shown in the README
+"""Fetch NBA game results from the BALLDONTLIE API, store them in SQLite,
+and export the JSON consumed by the site in docs/.
 
-Run it by hand with:   python fetch_games.py
-GitHub Actions runs it on a schedule (see .github/workflows/update.yml).
+Requires the BALLDONTLIE_API_KEY environment variable. Run with:
+    python fetch_games.py
 """
 
 import datetime
@@ -24,49 +13,32 @@ import time
 
 import requests
 import matplotlib
-matplotlib.use("Agg")          # lets matplotlib draw without a screen (needed on GitHub)
+matplotlib.use("Agg")  # headless backend for CI
 import matplotlib.pyplot as plt
 
-# ---------------------------------------------------------------------------
-# Settings
-# ---------------------------------------------------------------------------
-TEAM_NAME = "Los Angeles Lakers"   # the team featured in the README chart
+TEAM_NAME = "Los Angeles Lakers"   # team featured in the README chart
 API_BASE = "https://api.balldontlie.io/v1"
-API_KEY = os.environ.get("BALLDONTLIE_API_KEY")   # read from an environment variable, never hard-coded
+API_KEY = os.environ.get("BALLDONTLIE_API_KEY")
 DB_FILE = "games.db"
 CHART_FILE = "season_chart.png"
 JSON_FILE = os.path.join("docs", "data.json")
-THROTTLE_SECONDS = 13   # free tier allows 5 requests/minute, so pause between pages
+THROTTLE_SECONDS = 13  # free tier allows 5 requests/minute
 
 
 def get_headers():
-    """The API needs your key in an Authorization header on every request."""
     if not API_KEY:
-        raise SystemExit(
-            "No API key found. Set the BALLDONTLIE_API_KEY environment variable.\n"
-            "Get a free key at https://app.balldontlie.io"
-        )
+        raise SystemExit("BALLDONTLIE_API_KEY is not set.")
     return {"Authorization": API_KEY}
 
 
 def current_season():
-    """
-    The NBA season starts in October and is labelled by its starting year,
-    e.g. the 2025-26 season is season '2025'. This figures that out from today's date.
-    """
+    """Seasons are labelled by their starting year; the NBA year starts in October."""
     today = datetime.date.today()
     return today.year if today.month >= 10 else today.year - 1
 
 
-# ---------------------------------------------------------------------------
-# EXTRACT
-# ---------------------------------------------------------------------------
 def fetch_all_games(season):
-    """
-    Get every game in the league for this season (no team filter). A full
-    season is ~14 pages of 100 games; we sleep between pages to stay under
-    the free tier's 5 requests/minute.
-    """
+    """Fetch every game of the season, following cursor pagination."""
     games = []
     cursor = None
     page = 0
@@ -81,21 +53,14 @@ def fetch_all_games(season):
         page += 1
         print(f"  page {page}: {len(games)} games so far")
         cursor = payload.get("meta", {}).get("next_cursor")
-        if not cursor:           # no more pages
+        if not cursor:
             break
         time.sleep(THROTTLE_SECONDS)
     return games
 
 
-# ---------------------------------------------------------------------------
-# LOAD
-# ---------------------------------------------------------------------------
 def setup_db(conn):
-    """
-    Create the table once. game_id is the PRIMARY KEY so each game is stored
-    only once. If the database still has the old single-team layout, drop it
-    so it can be rebuilt league-wide.
-    """
+    # Drop the pre-league-wide schema if present so the table can be rebuilt.
     cols = [row[1] for row in conn.execute("PRAGMA table_info(games)")]
     if cols and "home_team" not in cols:
         conn.execute("DROP TABLE games")
@@ -118,15 +83,11 @@ def setup_db(conn):
 
 
 def save_games(conn, games):
-    """
-    LOAD each finished game. The ON CONFLICT clause means: if we've already
-    stored this game, just update it instead of inserting a duplicate. This
-    upsert is what makes re-running (and the daily schedule) safe.
-    """
+    """Upsert finished games keyed on game_id, so repeat runs never duplicate rows."""
     saved = 0
     for g in games:
         if g.get("status") != "Final":
-            continue            # game hasn't finished yet, skip it
+            continue
 
         conn.execute(
             """
@@ -149,11 +110,7 @@ def save_games(conn, games):
     return saved
 
 
-# ---------------------------------------------------------------------------
-# EXPORT (for the website)
-# ---------------------------------------------------------------------------
 def export_json(conn, season):
-    """Write the data the website reads: every finished game plus the team list."""
     rows = conn.execute(
         """
         SELECT date, home_team, away_team, home_score, away_score, postseason
@@ -178,11 +135,8 @@ def export_json(conn, season):
     print(f"Saved {JSON_FILE} ({len(teams)} teams, {len(games)} games)")
 
 
-# ---------------------------------------------------------------------------
-# VISUALIZE (the README chart for TEAM_NAME)
-# ---------------------------------------------------------------------------
 def make_chart(conn, team_name, season):
-    """Draw cumulative wins and losses across the season for one team."""
+    """Cumulative win/loss chart for one team, embedded in the README."""
     rows = conn.execute(
         """
         SELECT home_team, home_score, away_score FROM games

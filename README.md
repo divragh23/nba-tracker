@@ -1,37 +1,32 @@
 # NBA Stats Tracker
 
-An automated data pipeline and website covering all 30 NBA teams. Every day a
-GitHub Actions workflow pulls the season's game results from the
-[BALLDONTLIE](https://www.balldontlie.io) API, upserts them into a SQLite
-database (idempotent — safe to re-run, never duplicates), exports the data as
-JSON, and commits the refreshed files back to this repo.
+Automated season tracker for all 30 NBA teams.
 
-**Live site:** <https://divragh23.github.io/nba-tracker/> — pick any team for
-an animated season breakdown, or compare two teams head to head.
+A scheduled GitHub Actions workflow pulls each day's game results from the
+[BALLDONTLIE](https://www.balldontlie.io) API, stores them in SQLite, and
+publishes the data to a static site where any team can be analyzed or
+compared head to head.
+
+Live site: [nba.div23.app](https://nba.div23.app)
 
 ![Season chart](season_chart.png)
 
 ## How it works
 
-ETL, end to end:
+`fetch_games.py` fetches the full season's games (cursor pagination,
+rate-limit throttling), upserts them into `games.db` keyed on game id, and
+writes `docs/data.json` along with the chart above. The workflow in
+`.github/workflows/update.yml` runs this daily and commits the refreshed
+files, which redeploys the GitHub Pages site.
 
-- **Extract** — fetches every game of the current season (~14 paginated API
-  requests, throttled to respect the free tier's rate limit).
-- **Transform** — one clean row per finished game: teams, scores, playoff flag.
-- **Load** — upserted into SQLite keyed on the API's game id, then exported to
-  `docs/data.json`, which the static site reads. No API key ever reaches the
-  browser.
+Since loads are upserts, the pipeline is idempotent: re-running it any number
+of times produces the same database state with no duplicate rows.
 
-Running it needs a free BALLDONTLIE key in the `BALLDONTLIE_API_KEY`
-environment variable (locally) or repository secret (GitHub Actions).
+The site itself is a single static page (vanilla JS, animated SVG charts)
+that reads `data.json`. The API key is only used server-side by the pipeline,
+supplied through the `BALLDONTLIE_API_KEY` environment variable locally and a
+repository secret in CI.
 
-## Files
+## Stack
 
-| File | What it is |
-|------|------------|
-| `fetch_games.py` | The pipeline: extract, transform, load, export, chart. |
-| `docs/index.html` | The website (served by GitHub Pages from `docs/`). |
-| `docs/data.json` | Season data the site reads (regenerated daily). |
-| `.github/workflows/update.yml` | The daily schedule that runs everything. |
-| `games.db` | The SQLite database. |
-| `season_chart.png` | Featured-team chart shown above. |
+Python, requests, matplotlib, SQLite, GitHub Actions, GitHub Pages.

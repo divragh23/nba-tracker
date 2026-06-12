@@ -1,15 +1,10 @@
-# Python bytecode
+# Python
 __pycache__/
 *.pyc
-
-# Local secrets — the API key must never be committed
-.env
-
-# Local virtual environment — recreated anywhere via requirements.txt
 .venv/
 
-# Local editor/agent tooling
-.claude/
+# Local secrets
+.env
 
-# NOTE: games.db and season_chart.png are intentionally NOT ignored.
-# The GitHub Action commits them back to the repo every day.
+# games.db, season_chart.png and docs/data.json are intentionally tracked:
+# the scheduled workflow commits them on each run.

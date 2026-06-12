@@ -1,14 +1,12 @@
 name: Update NBA stats
 
-# This is what makes it a "pipeline" instead of a script you run by hand:
-# it runs on its own, on a schedule.
 on:
   schedule:
-    - cron: "0 12 * * *"     # every day at 12:00 UTC
-  workflow_dispatch:          # also lets you trigger it manually from the Actions tab
+    - cron: "0 12 * * *"   # daily, 12:00 UTC
+  workflow_dispatch:
 
 permissions:
-  contents: write             # needed so the job can commit the updated data back
+  contents: write
 
 jobs:
   update:
@@ -35,6 +33,5 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add games.db season_chart.png docs/data.json
-          # only commit if something actually changed
           git diff --staged --quiet || git commit -m "Update stats $(date -u +%Y-%m-%d)"
           git push
